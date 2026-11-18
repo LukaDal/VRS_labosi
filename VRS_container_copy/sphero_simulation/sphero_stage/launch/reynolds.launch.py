@@ -1,35 +1,46 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
 from launch.actions import ExecuteProcess
-from math import pi
+from ament_index_python.packages import get_package_share_directory
 import datetime
+import yaml
+import os
 
 def generate_launch_description():
     
     nodes = []
     topics = []
 
-### Change simulation parameters here ###
-    n_boids = 10
-    rand_seed = 17
-    fov_r = 3
-    fov_ang = (2*pi)*(1)
-    dt = 0.1
-###-----------------------------------###
+    package_share = get_package_share_directory('sphero_stage')
+    config_path = os.path.join(package_share, 'launch', 'launch_params.yaml')
+    with open(config_path, 'r') as stream:
+        config = yaml.safe_load(stream)
 
-    for i in range(n_boids):
+    basic_reynolds = config['basic_reynolds']
+    n_boids = config['num_of_robots']
+    rand_seed = config['rand_seed']
+    dt = config['dt']
+
+    distribution = config['distribution']
+    distribution_params = config['distribution_list'][distribution]
+    swarm_target_x = distribution_params['center_x']
+    swarm_target_y = distribution_params['center_y']
+
+    for i in range(config['num_of_robots']):
         nodes.append(
             Node(
                 package='sphero_stage',
                 executable='boid_brain',
                 name=f'boid_brain_{i}',
                 parameters=[
+                    {'basic_reynolds': basic_reynolds},
                     {'robot_id': i},
                     {'n_boids': n_boids},
                     {'rand_seed': rand_seed},
-                    {'fov_r': fov_r},
-                    {'fov_ang': fov_ang},
-                    {'dt': dt}],
+                    {'dt': dt},
+                    {'swarm_target_x': swarm_target_x},
+                    {'swarm_target_y': swarm_target_y},
+                    ],
                 output='screen'
             )
         )
@@ -38,16 +49,12 @@ def generate_launch_description():
         topics.append(f'/robot_{i}/ac')
         
     # Rosbag recording, change path if needed
-#    fov_ang = round(fov_ang, 2)
-#    c_ali = round(c_ali, 2)
-#    c_coh = round(c_coh, 2)
-#    c_sep = round(c_sep, 2)
 #    time = datetime.datetime.now()
        
 #    bag_record = ExecuteProcess(
 #        cmd=['ros2', 'bag', 'record', '-o',
 #        '/root/ros2_ws/src/sphero_simulation/sphero_stage/bags/' + 
-#        f'nb{n_boids}r{fov_r}fov{fov_ang}ca{c_ali}cc{c_coh}cs{c_sep}_{time}',
+#        f'bag_{time}',
 #        *topics],
 #        output='screen'
 #    )
